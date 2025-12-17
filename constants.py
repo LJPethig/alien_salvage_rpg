@@ -1,0 +1,36 @@
+SLOW = 0.87 # 0.87 changed to speed up testing
+FAST = 0.03 # 0.03 changed to speed up testing
+INSTANT = 0.00
+PAUSE = 1.2 # 1.2 changed to speed up testing
+
+NORMAL_JITTER_MIN = 0.6
+NORMAL_JITTER_MAX = 2.5
+DEGRADED_JITTER_MIN = 4.25
+DEGRADED_JITTER_MAX = 15.96
+
+CURSOR_BLINK_INTERVAL = 0.53
+
+MARGIN_X = 50
+MARGIN_TOP = 100
+MARGIN_BOTTOM = 20
+SCREEN_WIDTH = 1024
+SCREEN_HEIGHT = 726
+BORDER_WIDTH = 4
+
+SCANLINE_STEP = 2
+SCANLINE_WIDTH = 1
+
+FONT_NAME_PRIMARY = "Share Tech Mono"
+FONT_NAME_FALLBACK = "Courier New"
+FONT_SIZE_DEFAULT = 16
+LINE_HEIGHT_MULTIPLIER = 1.5
+
+BACKGROUND_COLOR = (0, 0, 0, 255) # Black
+BORDER_COLOR = (144, 238, 144, 255) # Light Green
+TEXT_COLOR = (144, 238, 144, 255)
+CURSOR_COLOR = (144, 238, 144, 255)
+SCANLINE_COLOR = (0, 30, 0, 40)
+
+GLITCH_CHAR_THRESHOLD = 50 # Threshold of system degradation before glitching characters
+GLITCH_CHAR_CHANCE = 0.025 # Chance of glitching characters if threshold met
+GLITCH_CHARS = "▓▒░${!#@^% "
