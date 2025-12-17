@@ -41,6 +41,7 @@ class Terminal(arcade.View):
 
         self.previous_view = None
         self.game_view = None  # Will be set by parent view
+        self.on_exit_callback = None
 
     def start_typing_response(self, lines):
         """Start typing out multiple lines with degradation"""
@@ -244,7 +245,9 @@ class Terminal(arcade.View):
 
     def on_key_press(self, key, modifiers):
         if key == arcade.key.ESCAPE:
-            if self.previous_view:
+            if self.on_exit_callback:
+                self.on_exit_callback()
+            elif self.previous_view:
                 self.window.show_view(self.previous_view)
             else:
                 arcade.close_window()
@@ -314,12 +317,16 @@ class Terminal(arcade.View):
             self.displayed_text = ["> "]
             self.current_input = ""
             return []
-        elif command in ("exit", "quit"):
-            if self.previous_view:
+        elif command in ("exit", "quit", "back", "leave"):
+            if self.on_exit_callback:
+                self.on_exit_callback()
+                return ["Logging out..."]
+            elif self.previous_view:
                 self.window.show_view(self.previous_view)
+                return ["Logging out..."]
             else:
                 arcade.close_window()
-            return [] # Consider adding message for log out later
+                return []
         else:
             return [f"Command not found: {command}"]
 

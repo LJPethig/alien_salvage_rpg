@@ -1,88 +1,83 @@
+# main.py
 import arcade
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, FONT_NAME_PRIMARY, FONT_SIZE_DEFAULT
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT
+
 from utils import build_terminal
 from terminal.terminal_view import Terminal
 
-from game_view import GameView  # ← UNCOMMENT this line when you're ready for full game
+# New imports
+from locations import SHIP_LOCATIONS, Location
+from game_state import GameState
 
-# Central definition of ship terminals
+# Your existing terminal specs
 SHIP_TERMINALS = [
     {
         "name": "mother",
         "type": "MOTHER",
         "integrity": {"cpu": 100, "memory": 70, "storage": 50},
-        "font_name": FONT_NAME_PRIMARY,
-        "font_size": FONT_SIZE_DEFAULT,
+        "font_name": "Courier New",
+        "font_size": 18,
     },
     {
         "name": "security",
         "type": "SECURITY",
         "integrity": {"cpu": 62, "memory": 89, "storage": 100},
-        "font_name": FONT_NAME_PRIMARY,
-        "font_size": FONT_SIZE_DEFAULT,
+        "font_name": "Courier New",
+        "font_size": 18,
     },
-    # Add more later...
+    # Add more later
 ]
 
+class MyGame(arcade.Window):
+    def __init__(self):
+        super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, resizable=False)
+        arcade.set_background_color(arcade.color.BLACK)
 
-def create_terminals():
-    """Build all Terminal instances from the central spec list."""
-    terminals = {}
-    for spec in SHIP_TERMINALS:
-        config = build_terminal(spec["integrity"], spec["type"])
+        self.game_state = GameState()
 
-        font_name = spec.get("font_name", FONT_NAME_PRIMARY)
-        font_size = spec.get("font_size", FONT_SIZE_DEFAULT)
+        # Build terminals
+        self.terminals = {}
+        for spec in SHIP_TERMINALS:
+            config = build_terminal(spec["integrity"], spec["type"])
 
-        terminal_instance = Terminal(config, font_name=font_name, font_size=font_size)
-        terminal_instance.name = spec["name"]
+            terminal = Terminal(
+                config,
+                font_name=spec.get("font_name", "Courier New"),
+                font_size=spec.get("font_size", 18)
+            )
+            terminal.name = spec["name"]
 
-        terminals[spec["name"]] = terminal_instance
+            # Proxy to preserve game_view.get_timestamp() compatibility
+            class TimestampProxy:
+                def __init__(self, gs):
+                    self.gs = gs
+                def get_timestamp(self):
+                    return self.gs.get_timestamp()
 
-    return terminals
+            terminal.game_view = TimestampProxy(self.game_state)
+
+            self.terminals[spec["name"]] = terminal
+
+        # Create all locations
+        self.locations = {}
+        for loc_data in SHIP_LOCATIONS:
+            loc = Location(loc_data, self.terminals, self.game_state)
+            self.locations[loc_data["id"]] = loc
+
+        # Start in corridor
+        starting = self.locations["corridor"]
+        starting.messages.append("You awaken. Darkness. Pain. Then — flickering light.")
+        self.show_view(starting)
+
+    def on_update(self, delta_time: float):
+        self.game_state.update_time(delta_time)
+        super().on_update(delta_time)
 
 
 def main():
-    window = arcade.Window(
-        SCREEN_WIDTH,
-        SCREEN_HEIGHT,
-        "Alien Salvage RPG",
-        resizable=False,
-        style=arcade.Window.WINDOW_STYLE_BORDERLESS
-    )
-
-    all_terminals = create_terminals()
-
-    # ===================================================================
-    # QUICK TESTING MODE — keep this while developing terminals
-    # ===================================================================
-    # terminal_to_show = "mother"  # Change to "security" or any name to test directly
-    #
-    # if terminal_to_show in all_terminals:
-    #     term = all_terminals[terminal_to_show]
-    #     window.show_view(term)
-    # else:
-    #     # Safety fallback
-    #     arcade.draw_text(
-    #         f"ERROR: Terminal '{terminal_to_show}' not found.",
-    #         SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2,
-    #         arcade.color.RED, 30, anchor_x="center", anchor_y="center"
-    #     )
-    #     window.show_view(arcade.View())
-    #     arcade.run()
-    #     return
-
-    # ===================================================================
-    # FULL GAME MODE — uncomment the block below when GameView is ready
-    # ===================================================================
-    game_view = GameView(all_terminals)
-    window.show_view(game_view)
-
+    game = MyGame()
     arcade.run()
 
 
 if __name__ == "__main__":
-    import sys
-    import os
-    sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
     main()
