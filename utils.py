@@ -1,6 +1,5 @@
 import random
 from terminal.boot_sequence import universal_boot_sequence
-from datetime import datetime, timedelta
 
 
 def jitter(min_val, max_val):
