@@ -1,4 +1,4 @@
-# game_view.py
+# game_view.py DEPRECATED!!!
 import arcade
 from datetime import datetime, timedelta
 from constants import (

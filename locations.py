@@ -17,7 +17,7 @@ SHIP_LOCATIONS = [
         ],
         "background": "resources/images/corridor.png",
         "exits": {"north": "mother_room", "n": "mother_room", "go north": "mother_room"},
-        "terminal": None,  # No terminal here
+        "terminal": None,
     },
     {
         "id": "mother_room",
@@ -31,9 +31,9 @@ SHIP_LOCATIONS = [
             "You can 'use terminal' or 'access console' to interact with it.",
             "Type 'south' or 'leave' to return to the corridor.",
         ],
-        "background": "resources/images/mother_room.png",  # Use a different image or same for now
+        "background": "resources/images/mother_room.png",
         "exits": {"south": "corridor", "s": "corridor", "leave": "corridor", "back": "corridor"},
-        "terminal": "mother",  # Name of terminal from self.terminals dict
+        "terminal": "mother",
         "access_commands": ["use terminal", "access terminal", "use console", "access console", "terminal", "console"],
     },
 ]
@@ -48,27 +48,39 @@ class Location(arcade.View):
         self.current_input = ""
         self.messages = []
 
-        # Background
+        # === Background SpriteList (correct for Arcade 3.x) ===
         self.background_list = arcade.SpriteList()
         try:
             bg_sprite = arcade.Sprite(data["background"])
+            # Scale to fill height, preserve aspect
+            scale = SCREEN_HEIGHT / bg_sprite.height
+            bg_sprite.scale = scale
+            # Center in full screen (sections don't affect sprite positioning)
             bg_sprite.center_x = SCREEN_WIDTH // 2
             bg_sprite.center_y = SCREEN_HEIGHT // 2
-            scale = (SCREEN_WIDTH * 0.95) / bg_sprite.width
-            bg_sprite.scale = scale
-            if bg_sprite.height * scale > SCREEN_HEIGHT * 0.8:
-                scale = (SCREEN_HEIGHT * 0.8) / bg_sprite.height
-                bg_sprite.scale = scale
             self.background_list.append(bg_sprite)
         except Exception as e:
             print(f"Background load failed: {e}")
+
+        # Section Manager (optional for future event routing, but useful)
+        self.section_manager = arcade.SectionManager(self)
+
+        # Background section bounds (for overlay)
+        bg_width = int(SCREEN_WIDTH * 0.7)
+        self.bg_section = arcade.Section(left=0, bottom=0, width=bg_width, height=SCREEN_HEIGHT)
+        self.section_manager.add_section(self.bg_section)
+
+        # Text section bounds
+        text_left = bg_width
+        self.text_section = arcade.Section(left=text_left, bottom=0, width=SCREEN_WIDTH - text_left, height=SCREEN_HEIGHT)
+        self.section_manager.add_section(self.text_section)
 
         # Terminal state
         self.terminal_instance = None
         terminal_name = data.get("terminal")
         if terminal_name and terminal_name in terminals_dict:
             self.terminal_instance = terminals_dict[terminal_name]
-            self.terminal_instance.previous_view = self  # exit returns here
+            self.terminal_instance.previous_view = self
             self.terminal_instance.on_exit_callback = self.deactivate_terminal
 
         self.terminal_active = False
@@ -80,7 +92,7 @@ class Location(arcade.View):
 
     def deactivate_terminal(self):
         self.terminal_active = False
-        self.messages.append("Terminal session ended. Screen goes dark.")
+        self.messages.append("Terminal session ended. Screen powers down.")
 
     def on_update(self, delta_time: float):
         self.game_state.update_time(delta_time)
@@ -90,83 +102,104 @@ class Location(arcade.View):
     def on_draw(self):
         self.clear()
         arcade.set_background_color(BACKGROUND_COLOR)
+
+        # Draw background (full screen)
         self.background_list.draw()
 
-        # Dark overlay
-        arcade.draw_lrbt_rectangle_filled(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT, (0, 0, 0, 160))
-
-        # Timestamp
-        timestamp = self.game_state.get_timestamp()
-        arcade.draw_text(
-            timestamp,
-            SCREEN_WIDTH - 20, SCREEN_HEIGHT - 40,
-            arcade.color.DARK_GREEN, 14,
-            anchor_x="right", font_name=FONT_NAME_PRIMARY
+        # Dark overlay on background area
+        arcade.draw_lrbt_rectangle_filled(
+            self.bg_section.left, self.bg_section.right,
+            self.bg_section.bottom, self.bg_section.top,
+            (0, 0, 0, 140)
         )
 
-        # Room title
-        arcade.draw_text(
-            self.data["name"],
-            50, SCREEN_HEIGHT - 80,
-            arcade.color.LIGHT_GREEN, 28,
-            bold=True, font_name=FONT_NAME_PRIMARY
+        # Dark panel on text area
+        arcade.draw_lrbt_rectangle_filled(
+            self.text_section.left, self.text_section.right,
+            self.text_section.bottom, self.text_section.top,
+            (0, 0, 0, 200)
         )
 
-        # Description
-        y = SCREEN_HEIGHT - 140
-        for line in self.data["description"]:
-            arcade.draw_text(line, 50, y, TEXT_COLOR, FONT_SIZE_DEFAULT, font_name=FONT_NAME_PRIMARY)
-            y -= 35
-
-        # Messages
-        y = 220
-        for msg in self.messages[-6:]:
-            arcade.draw_text(msg, 50, y, arcade.color.CYAN, 14, font_name=FONT_NAME_PRIMARY)
-            y -= 28
-
-        # Input prompt when terminal inactive
+        # Text content (only when terminal inactive)
         if not self.terminal_active:
+            # Timestamp
+            timestamp = self.game_state.get_timestamp()
+            arcade.draw_text(
+                timestamp,
+                SCREEN_WIDTH - 30, SCREEN_HEIGHT - 40,
+                arcade.color.DARK_GREEN, 14,
+                anchor_x="right", font_name=FONT_NAME_PRIMARY
+            )
+
+            # Room title
+            arcade.draw_text(
+                self.data["name"],
+                self.text_section.left + 30, SCREEN_HEIGHT - 70,
+                arcade.color.LIGHT_GREEN, 36,
+                bold=True, font_name=FONT_NAME_PRIMARY
+            )
+
+            # Description
+            y = SCREEN_HEIGHT - 160
+            for line in self.data["description"]:
+                arcade.draw_text(
+                    line,
+                    self.text_section.left + 30, y,
+                    TEXT_COLOR, FONT_SIZE_DEFAULT,
+                    font_name=FONT_NAME_PRIMARY,
+                    width=self.text_section.width - 60
+                )
+                y -= 45
+
+            # Messages
+            y = self.text_section.height // 2 + 100
+            for msg in self.messages[-10:]:
+                arcade.draw_text(
+                    msg,
+                    self.text_section.left + 30, y,
+                    arcade.color.CYAN, 15,
+                    font_name=FONT_NAME_PRIMARY,
+                    width=self.text_section.width - 60
+                )
+                y -= 35
+
+            # Input prompt
             cursor = "█" if int(self.game_state.elapsed_seconds * 2) % 2 else " "
             arcade.draw_text(
                 f"> {self.current_input}{cursor}",
-                50, 100,
+                self.text_section.left + 30, 120,
                 TEXT_COLOR, FONT_SIZE_DEFAULT + 6,
                 font_name=FONT_NAME_PRIMARY
             )
 
-        # Active terminal draws over everything
+        # Full terminal when active
         if self.terminal_active and self.terminal_instance:
             self.terminal_instance.on_draw()
 
     def on_key_press(self, key, modifiers):
-        # Terminal has priority if active
         if self.terminal_active and self.terminal_instance:
             self.terminal_instance.on_key_press(key, modifiers)
             return
 
-        # Room-level input
         if key == arcade.key.ENTER:
             cmd = self.current_input.strip().lower()
             self.current_input = ""
             self.messages.append(f"> {cmd}")
 
-            # Activate terminal
             if cmd in self.data.get("access_commands", []) and self.terminal_instance:
                 self.activate_terminal()
                 return
 
-            # Exit room
             if cmd in self.data["exits"]:
                 target_id = self.data["exits"][cmd]
                 target_loc = self.window.locations.get(target_id)
                 if target_loc:
                     self.window.show_view(target_loc)
-                    target_loc.messages.append("You enter from the south.")
+                    target_loc.messages.append("You enter the chamber.")
                 else:
                     self.messages.append("You can't go that way.")
                 return
 
-            # Other commands
             if cmd in ["look", "l"]:
                 self.messages.extend(self.data["description"])
             elif cmd == "help":
